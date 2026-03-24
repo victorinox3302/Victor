@@ -3,32 +3,12 @@ const express = require('express');
 const Groq = require('groq-sdk');
 const https = require('https');
 const http = require('http');
-const fs = require('fs');
-const path = require('path');
 
 const app = express();
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
 app.use(express.static('public'));
 app.use(express.json());
-
-function downloadFile(url, filepath) {
-    return new Promise((resolve, reject) => {
-        const protocol = url.startsWith('https') ? https : http;
-        const file = fs.createWriteStream(filepath);
-        
-        protocol.get(url, (response) => {
-            response.pipe(file);
-            file.on('finish', () => {
-                file.close();
-                resolve();
-            });
-        }).on('error', (err) => {
-            fs.unlink(filepath, () => {});
-            reject(err);
-        });
-    });
-}
 
 app.post('/transcribe', async (req, res) => {
     try {
@@ -38,18 +18,22 @@ app.post('/transcribe', async (req, res) => {
             return res.status(400).json({ error: 'URL manquante' });
         }
 
-        const tempPath = path.join(process.cwd(), 'public', `audio-${Date.now()}.mp3`);
-        await downloadFile(url, tempPath);
+        const protocol = url.startsWith('https') ? https : http;
         
-        const transcription = await groq.audio.transcriptions.create({
-            file: fs.createReadStream(tempPath),
-            model: "whisper-large-v3",
-            language: "fr"
+        protocol.get(url, async (response) => {
+            try {
+                const transcription = await groq.audio.transcriptions.create({
+                    file: response,
+                    model: "whisper-large-v3",
+                    language: "fr"
+                });
+                
+                res.json({ transcription: transcription.text });
+            } catch (error) {
+                console.error('Erreur:', error.message);
+                res.status(500).json({ error: error.message });
+            }
         });
-        
-        fs.unlinkSync(tempPath);
-        
-        res.json({ transcription: transcription.text });
     } catch (error) {
         console.error('Erreur:', error.message);
         res.status(500).json({ error: error.message });
