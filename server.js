@@ -12,7 +12,6 @@ const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 app.use(express.static('public'));
 app.use(express.json());
 
-// Fonction pour télécharger le fichier depuis une URL
 function downloadFile(url, filepath) {
     return new Promise((resolve, reject) => {
         const protocol = url.startsWith('https') ? https : http;
@@ -39,18 +38,15 @@ app.post('/transcribe', async (req, res) => {
             return res.status(400).json({ error: 'URL manquante' });
         }
 
-        // Télécharger le fichier temporairement
-        const tempPath = path.join('/tmp', `audio-${Date.now()}.mp3`);
+        const tempPath = path.join(process.cwd(), 'public', `audio-${Date.now()}.mp3`);
         await downloadFile(url, tempPath);
         
-        // Transcrire avec Groq
         const transcription = await groq.audio.transcriptions.create({
             file: fs.createReadStream(tempPath),
             model: "whisper-large-v3",
             language: "fr"
         });
         
-        // Nettoyer
         fs.unlinkSync(tempPath);
         
         res.json({ transcription: transcription.text });
@@ -69,4 +65,19 @@ app.post('/refine', async (req, res) => {
                 role: "user",
                 content: `Voici une retranscription : "${transcription}"\n\nInstruction : ${instruction}\n\nDonne-moi la version améliorée.`
             }],
-            model: "llama-3
+            model: "llama-3.3-70b-versatile",
+            temperature: 0.5
+        });
+        
+        const refined = completion.choices[0].message.content;
+        res.json({ refined });
+    } catch (error) {
+        console.error('Erreur:', error.message);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+    console.log(`🚀 Application lancée sur http://localhost:${PORT}`);
+});
