@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Retranscription Audio IA</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+        .upload-zone {
+            border: 3px dashed #667eea;
+            border-radius: 10px;
+            padding: 40px;
+            text-align: center;
+            margin-bottom: 20px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .upload-zone:hover {
+            background: #f8f9ff;
+            border-color: #764ba2;
+        }
+        input[type="file"] {
+            display: none;
+        }
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            transition: transform 0.2s;
+        }
+        button:hover {
+            transform: scale(1.05);
+        }
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .transcription-box {
+            background: #f8f9ff;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+            min-height: 150px;
+            white-space: pre-wrap;
+        }
+        .refine-section {
+            margin-top: 20px;
+        }
+        input[type="text"] {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+        .loading {
+            text-align: center;
+            color: #667eea;
+            margin: 20px 0;
+        }
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎙️ Retranscription Audio avec IA</h1>
+        
+        <div class="upload-zone" onclick="document.getElementById('audioFile').click()">
+            <p>📁 Cliquez pour sélectionner un fichier audio</p>
+            <p style="font-size: 12px; color: #666; margin-top: 10px;">MP3, WAV, M4A acceptés</p>
+        </div>
+        <input type="file" id="audioFile" accept="audio/*">
+        
+        <button onclick="transcribe()" id="transcribeBtn">🚀 Lancer la retranscription</button>
+        
+        <div id="loading" class="loading" style="display: none;">
+            <div class="spinner"></div>
+            <p>Retranscription en cours...</p>
+        </div>
+        
+        <div id="result" style="display: none;">
+            <h3>📝 Retranscription :</h3>
+            <div class="transcription-box" id="transcription"></div>
+            
+            <div class="refine-section">
+                <h3>✨ Affiner avec l'IA :</h3>
+                <input type="text" id="instruction" placeholder="Ex: Corrige les fautes, améliore la ponctuation, reformule de manière professionnelle...">
+                <button onclick="refine()">🎯 Affiner</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentTranscription = '';
+
+        async function transcribe() {
+            const fileInput = document.getElementById('audioFile');
+            const file = fileInput.files[0];
+            
+            if (!file) {
+                alert('Veuillez sélectionner un fichier audio');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('audio', file);
+
+            document.getElementById('transcribeBtn').disabled = true;
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('result').style.display = 'none';
+
+            try {
+                const response = await fetch('/transcribe', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+                currentTranscription = data.transcription;
+                
+                document.getElementById('transcription').textContent = currentTranscription;
+                document.getElementById('result').style.display = 'block';
+            } catch (error) {
+                alert('Erreur : ' + error.message);
+            } finally {
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('transcribeBtn').disabled = false;
+            }
+        }
+
+        async function refine() {
+            const instruction = document.getElementById('instruction').value;
+            
+            if (!instruction) {
+                alert('Veuillez entrer une instruction');
+                return;
+            }
+
+            document.getElementById('loading').style.display = 'block';
+
+            try {
+                const response = await fetch('/refine', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        transcription: currentTranscription,
+                        instruction: instruction
+                    })
+                });
+
+                const data = await response.json();
+                currentTranscription = data.refined;
+                document.getElementById('transcription').textContent = currentTranscription;
+                document.getElementById('instruction').value = '';
+            } catch (error) {
+                alert('Erreur : ' + error.message);
+            } finally {
+                document.getElementById('loading').style.display = 'none';
+            }
+        }
+    </script>
+</body>
+</html>
