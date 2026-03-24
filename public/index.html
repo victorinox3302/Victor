@@ -25,21 +25,19 @@
             margin-bottom: 30px;
             text-align: center;
         }
-        .upload-zone {
-            border: 3px dashed #667eea;
+        input[type="text"] {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #667eea;
             border-radius: 10px;
-            padding: 40px;
+            font-size: 16px;
+            margin-bottom: 10px;
+        }
+        .hint {
+            font-size: 12px;
+            color: #666;
             text-align: center;
             margin-bottom: 20px;
-            cursor: pointer;
-            transition: all 0.3s;
-        }
-        .upload-zone:hover {
-            background: #f8f9ff;
-            border-color: #764ba2;
-        }
-        input[type="file"] {
-            display: none;
         }
         button {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -70,14 +68,6 @@
         .refine-section {
             margin-top: 20px;
         }
-        input[type="text"] {
-            width: 100%;
-            padding: 12px;
-            border: 2px solid #ddd;
-            border-radius: 8px;
-            font-size: 14px;
-            margin-bottom: 10px;
-        }
         .loading {
             text-align: center;
             color: #667eea;
@@ -102,11 +92,8 @@
     <div class="container">
         <h1>🎙️ Retranscription Audio avec IA</h1>
         
-        <div class="upload-zone" onclick="document.getElementById('audioFile').click()">
-            <p>📁 Cliquez pour sélectionner un fichier audio</p>
-            <p style="font-size: 12px; color: #666; margin-top: 10px;">MP3, WAV, M4A acceptés</p>
-        </div>
-        <input type="file" id="audioFile" accept="audio/*">
+        <input type="text" id="audioURL" placeholder="Collez l'URL de votre fichier audio (MP3, WAV, M4A...)">
+        <p class="hint">💡 Hébergez votre fichier sur Dropbox, Google Drive ou WeTransfer et collez le lien direct</p>
         
         <button onclick="transcribe()" id="transcribeBtn">🚀 Lancer la retranscription</button>
         
@@ -121,7 +108,7 @@
             
             <div class="refine-section">
                 <h3>✨ Affiner avec l'IA :</h3>
-                <input type="text" id="instruction" placeholder="Ex: Corrige les fautes, améliore la ponctuation, reformule de manière professionnelle...">
+                <input type="text" id="instruction" placeholder="Ex: Corrige les fautes, améliore la ponctuation...">
                 <button onclick="refine()">🎯 Affiner</button>
             </div>
         </div>
@@ -131,16 +118,12 @@
         let currentTranscription = '';
 
         async function transcribe() {
-            const fileInput = document.getElementById('audioFile');
-            const file = fileInput.files[0];
+            const audioURL = document.getElementById('audioURL').value;
             
-            if (!file) {
-                alert('Veuillez sélectionner un fichier audio');
+            if (!audioURL) {
+                alert('Veuillez entrer une URL');
                 return;
             }
-
-            const formData = new FormData();
-            formData.append('audio', file);
 
             document.getElementById('transcribeBtn').disabled = true;
             document.getElementById('loading').style.display = 'block';
@@ -149,7 +132,8 @@
             try {
                 const response = await fetch('/transcribe', {
                     method: 'POST',
-                    body: formData
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ url: audioURL })
                 });
 
                 const data = await response.json();
